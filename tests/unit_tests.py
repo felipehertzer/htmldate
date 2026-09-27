@@ -2068,3 +2068,23 @@ def test_deferred():
     </head><body></body></html>"""
     assert find_date(htmlstring, deferred_url_extractor=True) == "2017-09-01"
     assert find_date(htmlstring, deferred_url_extractor=False) == "2017-08-30"
+
+
+def test_two_digit_year_ahead_of_host_clock():
+    "A same-day timestamp in a zone ahead of UTC must not roll back a century."
+    from datetime import datetime
+
+    result = try_date_expr(
+        "27th Sep 26, 6:00am",
+        "%Y-%m-%d",
+        True,
+        datetime(1995, 1, 1),
+        datetime(2026, 9, 27, 23, 59),
+    )
+    assert result == "2026-09-27"
+    assert (
+        try_date_expr(
+            "27th Sep 26, 6:00am", "%Y-%m-%d", True, datetime(1995, 1, 1), datetime(2020, 1, 1)
+        )
+        is None
+    )

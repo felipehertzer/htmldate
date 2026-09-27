@@ -380,6 +380,9 @@ def external_date_parser(string: str, outputformat: str) -> str | None:
     return target.strftime(outputformat) if target else None
 
 
+FOUR_DIGIT_YEAR = re.compile(r"\b[12]\d{3}\b")
+
+
 @lru_cache(maxsize=CACHE_SIZE)
 def try_date_expr(
     string: str | None,
@@ -422,6 +425,17 @@ def try_date_expr(
             dateparser_result, outputformat, earliest=min_date, latest=max_date
         ):
             return dateparser_result
+        # Preferring past dates rolls a two-digit year back a century when its
+        # clock time is slightly ahead of the host clock (e.g. NZ vs UTC).
+        if dateparser_result and not FOUR_DIGIT_YEAR.search(string):
+            shifted = datetime.strptime(dateparser_result, outputformat)
+            shifted_result = shifted.replace(year=shifted.year + 100).strftime(
+                outputformat
+            )
+            if is_valid_date(
+                shifted_result, outputformat, earliest=min_date, latest=max_date
+            ):
+                return shifted_result
 
     return None
 
