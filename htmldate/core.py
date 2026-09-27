@@ -785,6 +785,7 @@ def find_date(
     min_date: datetime | str | None = None,
     max_date: datetime | str | None = None,
     deferred_url_extractor: bool = False,
+    preserve_timestamp: bool = False,
 ) -> str | None:
     """
     Extract dates from HTML documents using markup analysis and text patterns
@@ -821,6 +822,11 @@ def find_date(
         Use url extractor as backup only to prioritize full expressions,
         e.g. of the type `%Y-%m-%d %H:%M:%S`
     :type deferred_url_extractor: boolean
+    :param preserve_timestamp:
+        Preserve an explicit ISO timestamp from page metadata or matching article
+        JSON-LD, including its timezone. Fall back to normal date extraction when
+        unavailable. Defaults to False; no time of day or timezone is invented.
+    :type preserve_timestamp: boolean
     :return: Returns a valid date expression as a string, or None
     """
 
@@ -851,6 +857,21 @@ def find_date(
         urlelem = tree.find('.//link[@rel="canonical"]')
         if urlelem is not None:
             url = urlelem.get("href")
+
+    if preserve_timestamp:
+        from .timestamps import extract_timestamp
+
+        timestamp = extract_timestamp(
+            tree,
+            {
+                "url": url,
+                "original_date": original_date,
+                "min_date": options.min,
+                "max_date": options.max,
+            },
+        )
+        if timestamp is not None:
+            return timestamp
 
     # direct processing of URL info
     url_result = extract_url_date(url, options)
