@@ -107,6 +107,7 @@ def extract_timestamp(tree: HtmlElement, config: dict[str, Any]) -> str | None:
 
     minimum = _bound(config.get("min_date")) or date(1995, 1, 1)
     maximum = _bound(config.get("max_date")) or datetime.now(timezone.utc).date()
+    naive = None
     for value in candidates:
         if not re.search(r"[Tt ]\d{2}:\d{2}", value):
             continue
@@ -115,5 +116,8 @@ def extract_timestamp(tree: HtmlElement, config: dict[str, Any]) -> str | None:
         except ValueError:
             continue
         if minimum <= stamp.date() <= maximum:
-            return stamp.isoformat()
-    return None
+            if stamp.tzinfo is not None:
+                return stamp.isoformat()
+            if naive is None:
+                naive = stamp.isoformat()
+    return naive
