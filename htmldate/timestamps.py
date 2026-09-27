@@ -33,6 +33,17 @@ def _nodes(value: Any) -> list[dict[str, Any]]:
     return [value, *_nodes(value.get("@graph")), *_nodes(value.get("mainEntity"))]
 
 
+TRAILING_COMMA = re.compile(r",(\s*[}\]])")
+
+
+def _loads_lenient(script: str) -> Any:
+    """Parse JSON-LD, tolerating the trailing commas some CMS templates emit."""
+    try:
+        return json.loads(script, strict=False)
+    except json.JSONDecodeError:
+        return json.loads(TRAILING_COMMA.sub(r"\1", script), strict=False)
+
+
 def _identity(value: Any) -> str | None:
     if isinstance(value, dict):
         value = value.get("@id") or value.get("url")
@@ -92,7 +103,7 @@ def extract_timestamp(tree: HtmlElement, config: dict[str, Any]) -> str | None:
     nodes = []
     for script in tree.xpath('.//script[@type="application/ld+json"]/text()'):
         try:
-            nodes.extend(_nodes(json.loads(script, strict=False)))
+            nodes.extend(_nodes(_loads_lenient(script)))
         except json.JSONDecodeError:  # noqa: PERF203 — malformed scripts must not hide later metadata
             continue
     matched, anonymous = [], []

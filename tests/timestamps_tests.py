@@ -175,3 +175,11 @@ def test_conflicting_visible_microdata_is_ambiguous():
         '<span itemprop="datePublished" content="2026-09-20T09:00:00Z"></span>'
     )
     assert "T" not in (metadata(body) or "")
+
+
+def test_jsonld_with_trailing_commas_keeps_timestamp():
+    content = (
+        '<script type="application/ld+json">{"@type": "NewsArticle", "url": "' + URL + '",'
+        ' "datePublished": "2026-09-26T18:15:16+00:00",}</script>'
+    )
+    assert metadata(content) == "2026-09-26T18:15:16+00:00"
