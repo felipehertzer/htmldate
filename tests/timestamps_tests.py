@@ -133,3 +133,15 @@ def test_modification_requires_explicit_request_and_config_is_not_mutated():
     config = {"preserve_timestamp": True}
     find_date(content, **config)
     assert config == {"preserve_timestamp": True}
+
+
+def test_timezone_bearing_jsonld_precedes_naive_meta_timestamp():
+    content = '<meta property="article:published_time" content="2026-09-26T06:00:00">'
+    content += script(
+        {
+            "@type": "NewsArticle",
+            "url": URL,
+            "datePublished": "2026-09-26T06:00:00+10:00",
+        }
+    )
+    assert metadata(content) == "2026-09-26T06:00:00+10:00"
