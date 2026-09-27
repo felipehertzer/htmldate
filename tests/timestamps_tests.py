@@ -145,3 +145,33 @@ def test_timezone_bearing_jsonld_precedes_naive_meta_timestamp():
         }
     )
     assert metadata(content) == "2026-09-26T06:00:00+10:00"
+
+
+@pytest.mark.parametrize(
+    "tag",
+    [
+        '<meta property="og:article:published_time" content="2026-09-27T03:00:00Z">',
+        '<meta name="article:published_time" content="2026-09-27T03:00:00Z">',
+        '<meta name="parsely-pub-date" content="2026-09-27T03:00:00Z">',
+    ],
+)
+def test_publication_meta_variants(tag):
+    assert metadata(tag) == "2026-09-27T03:00:00+00:00"
+
+
+def test_parsely_date_is_not_a_modification_time():
+    content = '<meta name="parsely-pub-date" content="2026-09-27T03:00:00Z">'
+    assert "T" not in (metadata(content, original_date=False) or "")
+
+
+def test_single_visible_microdata_timestamp():
+    body = '<span itemprop="datePublished" content="2026-09-27T03:16:00+10:00">27 Sep</span>'
+    assert metadata(body) == "2026-09-27T03:16:00+10:00"
+
+
+def test_conflicting_visible_microdata_is_ambiguous():
+    body = (
+        '<span itemprop="datePublished" content="2026-09-26T03:16:00Z"></span>'
+        '<span itemprop="datePublished" content="2026-09-20T09:00:00Z"></span>'
+    )
+    assert "T" not in (metadata(body) or "")

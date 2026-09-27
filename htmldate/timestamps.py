@@ -63,10 +63,21 @@ def extract_timestamp(tree: HtmlElement, config: dict[str, Any]) -> str | None:
     original = config.get("original_date", True)
     field = "datePublished" if original else "dateModified"
     prop = "article:published_time" if original else "article:modified_time"
-    candidates = list(tree.xpath(f'.//meta[@property="{prop}"]/@content'))
+    candidates = list(
+        tree.xpath(
+            f'.//meta[@property="{prop}" or @property="og:{prop}" or @name="{prop}"]/@content'
+        )
+    )
+    if original:
+        candidates.extend(tree.xpath('.//meta[@name="parsely-pub-date"]/@content'))
     candidates.extend(
         tree.xpath(f'.//meta[@itemprop="{field}" or @name="{field}"]/@content')
     )
+    # Visible microdata may also mark related stories; only a single page-wide
+    # value is unambiguous enough to identify this article.
+    microdata = set(tree.xpath(f'.//*[not(self::meta)][@itemprop="{field}"]/@content'))
+    if len(microdata) == 1:
+        candidates.extend(microdata)
     candidates.extend(tree.xpath(f'.//time[@itemprop="{field}"]/@datetime'))
 
     page_url = config.get("url") or ""
