@@ -2242,3 +2242,11 @@ def test_deferred():
     </head><body></body></html>"""
     assert find_date(htmlstring, deferred_url_extractor=True) == "2017-09-01"
     assert find_date(htmlstring, deferred_url_extractor=False) == "2017-08-30"
+
+
+def test_external_parser_past_of_latest_local_time():
+    "A publisher's same-day timestamp in a zone ahead of the host's UTC day keeps its century."
+    from datetime import date
+
+    parser = get_external_parser(date(2026, 9, 26))
+    assert parser.get_date_data("27th Sep 26, 6:00am")["date_obj"].year == 2026
