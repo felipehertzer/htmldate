@@ -9,7 +9,7 @@ import re
 from collections import Counter
 from collections.abc import Callable, Sized
 from copy import deepcopy
-from datetime import datetime, timezone
+from datetime import datetime, time, timedelta, timezone
 from functools import partial
 
 from lxml.etree import Element
@@ -295,6 +295,42 @@ def examine_elements(elements: list[HtmlElement], options: Extractor) -> str | N
     return None
 
 
+# UTC offsets: from 12 hours behind to 14 hours ahead, in quarter hours
+UTC_OFFSETS = (timedelta(hours=-12), timedelta(hours=14))
+UTC_OFFSET_STEP = timedelta(minutes=15)
+
+
+def parse_output(value: str, options: Extractor) -> datetime | None:
+    "Read a value back in the output format."
+    try:
+        return datetime.strptime(value, options.format)
+    except ValueError:
+        return None
+
+
+def lacks_time_zone(value: str, options: Extractor) -> bool:
+    "The output format asks for the UTC offset and the value has a time without one."
+    if "%z" not in options.format:
+        return False
+    parsed = parse_output(value, options)
+    return parsed is not None and parsed.tzinfo is None and parsed.time() != time()
+
+
+def adds_time_zone(value: str | None, naive: str, options: Extractor) -> bool:
+    "The value has a UTC offset and is the same moment as the local time."
+    if value is None or lacks_time_zone(value, options):
+        return False
+    parsed, local = parse_output(value, options), parse_output(naive, options)
+    if parsed is None or parsed.tzinfo is None or local is None:
+        return False
+    utc = parsed.astimezone(timezone.utc).replace(tzinfo=None)
+    offset = local.replace(microsecond=0) - utc.replace(microsecond=0)
+    return (
+        UTC_OFFSETS[0] <= offset <= UTC_OFFSETS[1]
+        and offset % UTC_OFFSET_STEP == timedelta()
+    )
+
+
 def examine_header(
     tree: HtmlElement,
     options: Extractor,
@@ -338,6 +374,8 @@ def examine_header_dates(
 
     """
     headerdate, reserve = None, None
+    # a local time without the requested UTC offset waits for one of the same moment
+    naive = None
     tryfunc = partial(try_date_expr_opts, options=options)
     # loop through all meta elements
     for elem in tree.iterfind(".//meta"):
@@ -423,9 +461,14 @@ def examine_header_dates(
                     reserve = attempt or reserve
         # exit loop
         if headerdate is not None:
-            break
+            if naive is None and lacks_time_zone(headerdate, options):
+                naive, headerdate = headerdate, None
+            elif naive is None or adds_time_zone(headerdate, naive, options):
+                break
+            else:
+                headerdate = None
     # return values
-    return headerdate, reserve
+    return headerdate or naive, reserve
 
 
 def select_candidate(
@@ -897,6 +940,10 @@ def find_date(
     # date when the original one was requested): only use it if JSON-LD, which
     # can carry the requested date explicitly, has nothing to offer
     header_result, header_reserve = examine_header_dates(tree, options)
+    if header_result is not None and lacks_time_zone(header_result, options):
+        json_result = json_search(tree, options)
+        if adds_time_zone(json_result, header_result, options):
+            header_result = json_result
     result = header_result or json_search(tree, options) or header_reserve
     if result is not None:
         return result

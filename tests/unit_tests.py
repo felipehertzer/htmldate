@@ -2365,3 +2365,46 @@ def test_deferred():
     </head><body></body></html>"""
     assert find_date(htmlstring, deferred_url_extractor=True) == "2017-09-01"
     assert find_date(htmlstring, deferred_url_extractor=False) == "2017-08-30"
+
+
+@pytest.mark.parametrize(
+    "zoned",
+    [
+        '<meta property="article:published_time" content="2024-11-11T20:01:57+00:00"/>',
+        '<script type="application/ld+json">'
+        '{"@type":"NewsArticle","datePublished":"2024-11-11T20:01:57+00:00"}</script>',
+    ],
+)
+def test_header_naive_vs_zoned(zoned):
+    "A local time without time zone must not hide the same moment with one."
+    tzformat = "%Y-%m-%dT%H:%M:%S%z"
+    naive = '<meta name="sailthru.date" content="2024-11-11 15:01:57"/>'
+    doc = f"<html><head>{naive}{zoned}</head><body><p>text</p></body></html>"
+    for extensive in (True, False):
+        assert (
+            find_date(
+                doc,
+                outputformat=tzformat,
+                original_date=True,
+                extensive_search=extensive,
+            )
+            == "2024-11-11T20:01:57+0000"
+        )
+    assert find_date(doc, original_date=True) == "2024-11-11"
+    # no time zone asked for
+    assert (
+        find_date(doc, outputformat="%Y-%m-%d %H:%M", original_date=True)
+        == "2024-11-11 15:01"
+    )
+    # a format that does not read back
+    assert (
+        find_date(doc, outputformat="%Y-%m-%d %H:%M%z %Z", original_date=True)
+        == "2024-11-11 15:01 "
+    )
+    # not the same moment in any time zone
+    for other in ("2024-11-12T06:01:57", "2024-11-11T20:11:57", "2024-11-11"):
+        changed = doc.replace("2024-11-11T20:01:57", other)
+        assert (
+            find_date(changed, outputformat=tzformat, original_date=True)
+            == "2024-11-11T15:01:57"
+        )
