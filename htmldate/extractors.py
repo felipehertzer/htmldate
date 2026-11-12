@@ -8,6 +8,7 @@ import re
 
 from collections.abc import Iterator
 from datetime import datetime
+from email.utils import parsedate_to_datetime
 from functools import lru_cache
 from itertools import islice
 from typing import TYPE_CHECKING
@@ -102,6 +103,9 @@ YMD_TIME_RE = rf"({YEAR_RE}-{MONTH_RE}-{DAY_RE})({TIME_TZ_RE})"
 # groups: date, ISO time of day if any, rest of the string value
 JSON_MODIFIED = re.compile(rf'"dateModified": ?"{YMD_TIME_RE}?([^"]*)"', re.I)
 JSON_PUBLISHED = re.compile(rf'"datePublished": ?"{YMD_TIME_RE}?([^"]*)"', re.I)
+# any other way of writing the date, e.g. RFC 2822
+JSON_MODIFIED_ANY = re.compile(r'"dateModified": ?"([^"]{6,64})"', re.I)
+JSON_PUBLISHED_ANY = re.compile(r'"datePublished": ?"([^"]{6,64})"', re.I)
 
 # English, French, German, Indonesian, Polish and Turkish month names
 MONTHS = [
@@ -518,15 +522,35 @@ def json_search(
     # determine pattern
     json_pattern = JSON_PUBLISHED if options.original else JSON_MODIFIED
     # look throughout the HTML tree
-    for elem in tree.xpath(
-        './/script[@type="application/ld+json" or @type="application/settings+json"]'
-    ):
-        if not elem.text or '"date' not in elem.text:
-            continue
-        result = pattern_search(elem.text, json_pattern, options)
+    texts = [
+        elem.text
+        for elem in tree.xpath(
+            './/script[@type="application/ld+json" or @type="application/settings+json"]'
+        )
+        if elem.text and '"date' in elem.text
+    ]
+    for text in texts:
+        result = pattern_search(text, json_pattern, options)
         if result is not None:
             return result
+    # then dates not written in ISO 8601
+    any_pattern = JSON_PUBLISHED_ANY if options.original else JSON_MODIFIED_ANY
+    for text in texts:
+        match = any_pattern.search(text)
+        if match:
+            result = json_date_value(match[1], options)
+            if result is not None:
+                return result
     return None
+
+
+def json_date_value(value: str, options: Extractor) -> datetime | None:
+    "Parse a date value: RFC 2822 with its time and zone, else as usual."
+    try:
+        dateobject = parsedate_to_datetime(value)
+    except ValueError:
+        return try_date_expr_opts(value, options)
+    return dateobject if validate(dateobject, options.min, options.max) else None
 
 
 def idiosyncrasies_search(

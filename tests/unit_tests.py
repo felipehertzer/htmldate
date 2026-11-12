@@ -1722,3 +1722,51 @@ def test_json_ld_whole_date_value(value, expected):
             == expected
         )
         assert find_date(doc, original_date=original) == "2019-12-30"
+
+
+@pytest.mark.parametrize(
+    "value, expected",
+    [
+        ("Thu, 08 May 2014 14:04:53 -0400", "2014-05-08T14:04:53-0400"),
+        ("Thu, 08 May 2014 14:04:53 GMT", "2014-05-08T14:04:53+0000"),
+        ("Thu May 08 14:04:53 EDT 2014", "2014-05-08T14:04:53-0400"),
+        ("May 8, 2014 - 2:04pm", "2014-05-08T00:00:00"),
+        ("8 May 2014", "2014-05-08T00:00:00"),
+    ],
+)
+def test_json_ld_non_iso_dates(value, expected):
+    "JSON-LD dates are not always written in ISO 8601."
+    tzformat = "%Y-%m-%dT%H:%M:%S%z"
+    for key, original in (("datePublished", True), ("dateModified", False)):
+        jsonld = (
+            '<html><head><script type="application/ld+json">'
+            f'{{"@type":"Article","{key}":"{value}"}}'
+            "</script></head><body><p>text</p></body></html>"
+        )
+        for extensive in (True, False):
+            assert (
+                find_date(
+                    jsonld,
+                    outputformat=tzformat,
+                    original_date=original,
+                    extensive_search=extensive,
+                )
+                == expected
+            )
+        assert (
+            find_date(jsonld, original_date=original, extensive_search=False)
+            == "2014-05-08"
+        )
+        # an ISO 8601 value comes first, wherever it is
+        iso = (
+            '<script type="application/ld+json">'
+            f'{{"@type":"Article","{key}":"2014-05-09T10:00:00+02:00"}}</script>'
+        )
+        assert (
+            find_date(
+                jsonld.replace("</head>", f"{iso}</head>"),
+                outputformat=tzformat,
+                original_date=original,
+            )
+            == "2014-05-09T10:00:00+0200"
+        )
