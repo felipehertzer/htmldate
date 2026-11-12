@@ -1763,3 +1763,47 @@ def test_header_date_only_vs_timestamp(timed):
             find_date(doc, outputformat=TZ_FORMAT, original_date=True)
             == "2020-08-16T00:00:00"
         )
+
+
+@pytest.mark.parametrize(
+    "zoned",
+    [
+        '<meta property="article:published_time" content="2024-11-11T20:01:57+00:00"/>',
+        '<script type="application/ld+json">'
+        '{"@type":"NewsArticle","datePublished":"2024-11-11T20:01:57+00:00"}</script>',
+    ],
+)
+def test_header_naive_vs_zoned(zoned):
+    "A local time without time zone gets the offset of the same moment given with one."
+    naive = '<meta name="sailthru.date" content="2024-11-11 15:01:57"/>'
+    doc = f"<html><head>{naive}{zoned}</head><body><p>text</p></body></html>"
+    for extensive in (True, False):
+        assert (
+            find_date(
+                doc,
+                outputformat=TZ_FORMAT,
+                original_date=True,
+                extensive_search=extensive,
+            )
+            == "2024-11-11T15:01:57-0500"
+        )
+    assert find_date(doc, original_date=True) == "2024-11-11"
+    assert (
+        find_date(doc, outputformat="%Y-%m-%d %H:%M %Z", original_date=True)
+        == "2024-11-11 15:01 UTC-05:00"
+    )
+    # the local day stays when the moment is on the next day in UTC
+    late = doc.replace("15:01:57", "21:30:00").replace(
+        "2024-11-11T20:01:57", "2024-11-12T02:30:00"
+    )
+    assert find_date(late, outputformat=TZ_FORMAT, original_date=True) == (
+        "2024-11-11T21:30:00-0500"
+    )
+    assert find_date(late, original_date=True) == "2024-11-11"
+    # not the same moment in any time zone
+    for other in ("2024-11-12T06:01:57", "2024-11-11T20:11:57", "2024-11-11"):
+        changed = doc.replace("2024-11-11T20:01:57", other)
+        assert (
+            find_date(changed, outputformat=TZ_FORMAT, original_date=True)
+            == "2024-11-11T15:01:57"
+        )
