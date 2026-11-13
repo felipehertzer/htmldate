@@ -1815,14 +1815,18 @@ def test_discard_site_headers():
         assert find_date(doc, extensive_search=False) == "2026-02-06"
 
 
-@pytest.mark.parametrize("value", ["2026-09-27", "27/09/2026", "27.09.2026"])
-def test_month_fallback_from_rejected_date(value):
-    "A full date after max_date does not give the first of its month."
-    doc = (
-        f'<html><head><meta property="article:published_time" content="{value}"/>'
-        "</head><body><p>text</p></body></html>"
-    )
-    assert find_date(doc, extensive_search=False, max_date="2026-09-26") is None
-    # a year and month without a day still give the first of the month
-    doc = '<html><body><p class="date">Issue 08/2026</p><p>text</p></body></html>'
-    assert find_date(doc, max_date="2026-09-26") == "2026-08-01"
+@pytest.mark.parametrize(
+    "text,expected",
+    [
+        # published and updated dates glued together
+        ("27/08/202420/09/2024", None),
+        ("2024-08-2720/09/2024", "2024-08-27"),
+    ],
+)
+def test_month_inside_a_longer_date(text, expected):
+    "A year and month inside a longer date do not give the first of that month."
+    doc = f'<html><body><p class="date">{text}</p><p>text</p></body></html>'
+    assert find_date(doc, extensive_search=False) == expected
+    # a year and month on their own still give the first of the month
+    doc = '<html><body><p class="date">Issue 09/2024</p><p>text</p></body></html>'
+    assert find_date(doc, extensive_search=False) == "2024-09-01"
