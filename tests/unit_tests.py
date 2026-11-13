@@ -1903,7 +1903,7 @@ def test_header_date_only_vs_timestamp(timed):
     [
         '<meta property="article:published_time" content="2024-11-11T20:01:57+00:00"/>',
         '<script type="application/ld+json">'
-        '{"@type":"NewsArticle","datePublished":"2024-11-11T20:01:57+00:00"}</script>',
+        + '{"@type":"NewsArticle","datePublished":"2024-11-11T20:01:57+00:00"}</script>',
     ],
 )
 def test_header_naive_vs_zoned(zoned):
