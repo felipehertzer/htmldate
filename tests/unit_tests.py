@@ -2250,3 +2250,16 @@ def test_external_parser_past_of_latest_local_time():
 
     parser = get_external_parser(date(2026, 9, 26))
     assert parser.get_date_data("27th Sep 26, 6:00am")["date_obj"].year == 2026
+
+
+@pytest.mark.parametrize("value", ["2026-09-27", "27/09/2026", "27.09.2026"])
+def test_month_fallback_from_rejected_date(value):
+    "A full date after max_date does not give the first of its month."
+    doc = (
+        f'<html><head><meta property="article:published_time" content="{value}"/>'
+        "</head><body><p>text</p></body></html>"
+    )
+    assert find_date(doc, extensive_search=False, max_date="2026-09-26") is None
+    # a year and month without a day still give the first of the month
+    doc = '<html><body><p class="date">Issue 08/2026</p><p>text</p></body></html>'
+    assert find_date(doc, max_date="2026-09-26") == "2026-08-01"

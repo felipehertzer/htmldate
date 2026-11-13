@@ -85,9 +85,11 @@ YMD_PATTERN = re.compile(
     rf"(?:\D|^)(?:(?P<year>{YEAR_RE})[\-/.](?P<month>{MONTH_RE})[\-/.](?P<day>{DAY_RE})|"
     rf"(?P<day2>{DAY_RE})[\-/.](?P<month2>{MONTH_RE})[\-/.](?P<year2>\d{{2,4}}))(?:\D|$)"
 )
+# a year and month, not the start or the end of a full date: "2026-09" in "2026-09-27"
+# or "09-2026" in "27-09-2026" would make a rejected day the first of its month
 YM_PATTERN = re.compile(
-    rf"(?:\D|^)(?:(?P<year>{YEAR_RE})[\-/.](?P<month>{MONTH_RE})|"
-    rf"(?P<month2>{MONTH_RE})[\-/.](?P<year2>{YEAR_RE}))(?:\D|$)"
+    rf"(?:\D|^)(?:(?P<year>{YEAR_RE})[\-/.](?P<month>{MONTH_RE})(?![\-/.]\d)|"
+    rf"(?<!\d[\-/.])(?P<month2>{MONTH_RE})[\-/.](?P<year2>{YEAR_RE}))(?:\D|$)"
 )
 
 # any word from its start, MONTH_NUMBERS decides
