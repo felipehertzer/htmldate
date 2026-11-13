@@ -215,9 +215,10 @@ SLASHES_PATTERN = re.compile(
     rf"\D({DAY_RE}/{MONTH_RE}/[0129][0-9]|[0-3][0-9]\.[01][0-9]\.[0129][0-9])\D"
 )
 SLASHES_YEAR = re.compile(r"([0-9]{2})$")
-YYYYMM_PATTERN = re.compile(r"\D([12][0-9]{3}[/.-](?:1[0-2]|0[1-9]))\D")
+# year and month only, not the start of a full date (see YM_PATTERN)
+YYYYMM_PATTERN = re.compile(r"\D([12][0-9]{3}[/.-](?:1[0-2]|0[1-9]))(?![/.-]\d)\D")
 YYYYMM_CATCH = re.compile(rf"({YEAR_RE})[/.-](1[0-2]|0[1-9])")
-MMYYYY_PATTERN = re.compile(rf"\D({MONTH_RE}[/.-][12][0-9]{{3}})\D")
+MMYYYY_PATTERN = re.compile(rf"\D(?<!\d[/.-])({MONTH_RE}[/.-][12][0-9]{{3}})\D")
 SIMPLE_PATTERN = re.compile(rf"(?<!w3.org)\D({YEAR_RE})\D")
 
 THREE_COMP_PATTERNS = (THREE_PATTERN, THREE_LOOSE_PATTERN)
