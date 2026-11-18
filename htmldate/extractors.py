@@ -140,6 +140,54 @@ MONTH_NUMBERS = {
     _fold_month_name(name): i for i, names in enumerate(MONTHS, 1) for name in names
 }
 
+_DATELINE_SCOPE = XPath(
+    "ancestor::*[self::article or self::main or self::section or self::header][1]"
+)
+_IN_PAGE_FURNITURE = XPath(
+    "boolean(ancestor-or-self::*[self::a or self::nav or self::aside or self::footer "
+    "or @hidden or @aria-hidden='true'])"
+)
+
+
+def headline_dateline(tree: HtmlElement, options: Extractor) -> str | None:
+    """Read a standalone day immediately before the only article headline."""
+    headings = tree.findall(".//h1")
+    if len(headings) != 1:
+        return None
+    heading = headings[0]
+    if _IN_PAGE_FURNITURE(heading) or not heading.xpath(
+        "ancestor::main | ancestor::article"
+    ):
+        return None
+    previous = heading.xpath("preceding::text()[normalize-space()][1]")
+    if not previous or not previous[0].is_text or len(previous[0]) > MAX_SEGMENT_LEN:
+        return None
+    node = previous[0].getparent()
+    if (
+        node.tag not in {"div", "p", "span"}
+        or len(node)
+        or _IN_PAGE_FURNITURE(node)
+        or _DATELINE_SCOPE(node) != _DATELINE_SCOPE(heading)
+    ):
+        return None
+    # The whole element must be a day: a month/year, deadline in prose or
+    # neighboring story card is not evidence of the article's publication day.
+    match = LONG_TEXT_PATTERN.fullmatch(" ".join(previous[0].split()))
+    if match is None:
+        return None
+    month = MONTH_NUMBERS.get(_fold_month_name(match["month"] or match["month2"]))
+    if month is None:
+        return None
+    try:
+        day = datetime(
+            int(match["year"] or match["year2"]),
+            month,
+            int(match["day"] or match["day2"]),
+        )
+    except ValueError:
+        return None
+    return validate_and_convert(day, options.format, options.min, options.max)
+
 
 # gate for try_date_expr
 TEXT_DATE_PATTERN = re.compile(r"[.:,_/ -]")

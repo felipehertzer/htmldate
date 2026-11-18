@@ -19,6 +19,7 @@ from lxml.html import HtmlElement, tostring
 from .extractors import (
     discard_unwanted,
     extract_url_date,
+    headline_dateline,
     idiosyncrasies_search,
     img_search,
     json_search,
@@ -927,6 +928,7 @@ def find_date(
         examine_elements(date_candidates(search_tree, extensive_search), options)
         or examine_elements(search_tree.xpath(".//title|.//h1"), options)
         or examine_time_elements(search_tree, options)
+        or headline_dateline(search_tree, options)
     )
     if result is not None:
         return result

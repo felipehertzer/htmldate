@@ -84,6 +84,73 @@ OPTIONS = Extractor(True, LATEST_POSSIBLE, MIN_DATE, True, OUTPUTFORMAT)
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 
 
+@pytest.mark.parametrize("day", [17, 19])
+@pytest.mark.parametrize("extensive", [False, True])
+def test_standalone_dateline_before_the_article_headline(day, extensive):
+    # The date and headline on the publisher's pages are in separate wrappers.
+    page = (
+        f"<html><body><main><div><div>October {day}th, 2026</div></div>"
+        "<div><h1>Partnership announced</h1></div><p>Full story.</p>"
+        "<aside><a href='/other'><div>April 6th, 2025</div></a></aside>"
+        "</main></body></html>"
+    )
+    assert (
+        find_date(
+            page,
+            extensive_search=extensive,
+            original_date=True,
+            max_date="2026-11-18",
+            preserve_timestamp=True,
+        )
+        == f"2026-10-{day}"
+    )
+
+
+@pytest.mark.parametrize(
+    "markup",
+    [
+        "<aside><div>October 19th, 2026</div></aside><h1>Article</h1>",
+        "<a href='/other'><div>October 19th, 2026</div></a><h1>Article</h1>",
+        "<div hidden>October 19th, 2026</div><h1>Article</h1>",
+        "<div>October 19th, 2026</div><p>Other text</p><h1>Article</h1>",
+        "<div>October 19th, 2026</div><article><h1>Article</h1></article>",
+        "<div>October 19th, 2026</div><h1>One</h1><h1>Two</h1>",
+        "<h1>Article</h1><div>October 19th, 2026</div>",
+        "<div>Tickets until October 19th, 2026</div><h1>Article</h1>",
+        "<div>October 32nd, 2026</div><h1>Article</h1>",
+        "<div>October 19th, 2027</div><h1>Article</h1>",
+    ],
+)
+def test_headline_dateline_rejects_unrelated_or_invalid_dates(markup):
+    assert (
+        find_date(
+            f"<html><body><main>{markup}</main></body></html>",
+            extensive_search=False,
+            original_date=True,
+            max_date="2026-11-18",
+        )
+        is None
+    )
+
+
+def test_explicit_timestamp_precedes_headline_dateline():
+    page = (
+        '<html><head><meta property="article:published_time" '
+        'content="2026-10-16T09:30:00+11:00"></head><body><article>'
+        "<div>October 19th, 2026</div><h1>Article</h1></article></body></html>"
+    )
+    assert (
+        find_date(
+            page,
+            extensive_search=False,
+            original_date=True,
+            max_date="2026-11-18",
+            preserve_timestamp=True,
+        )
+        == "2026-10-16T09:30:00+11:00"
+    )
+
+
 def test_input():
     """test if loaded strings/trees are handled properly"""
     assert is_dubious_html("This is a string.") is True
