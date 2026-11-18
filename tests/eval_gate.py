@@ -16,7 +16,7 @@ from evaluation import (
 )
 
 # current full-corpus baseline; no regression allowed
-FLOORS = {"extensive": 0.9496, "fast": 0.9328}
+FLOORS = {"extensive": 0.9501, "fast": 0.9345}
 RUNNERS = {"extensive": run_htmldate_extensive, "fast": run_htmldate_fast}
 
 
