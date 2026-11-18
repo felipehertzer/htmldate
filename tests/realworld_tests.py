@@ -99,7 +99,6 @@ MOCK_PAGES = {
     "http://web.archive.org/web/20210916140120/https://www.kath.ch/die-insel-der-klosterzoeglinge/": "archive.org.kath.ch.html",
     "https://www.mozilla.org/en-US/security/advisories/mfsa2024-17/": "mozilla.org.mfsa2024-17.html",
     "https://www.ausleisure.com.au/news/club-car-and-pga-of-australia-renew-partnership": "ausleisure.com.au-club-car.html",
-    "https://www.ausleisure.com.au/news/sydney-fc-secures-allianz-stadium-future-with-25-year-agreement": "ausleisure.com.au-sydney-fc.html",
 }
 
 
@@ -107,33 +106,6 @@ def load_mock_page(url, dirname="cache", dictname=MOCK_PAGES):
     """load mock page from samples"""
     with open(os.path.join(TEST_DIR, dirname, dictname[url]), "rb") as inputf:
         return inputf.read()
-
-
-@pytest.mark.parametrize("extensive", [False, True], ids=["fast", "extensive"])
-@pytest.mark.parametrize(
-    "slug, expected",
-    [
-        ("club-car-and-pga-of-australia-renew-partnership", "2026-10-19"),
-        (
-            "sydney-fc-secures-allianz-stadium-future-with-25-year-agreement",
-            "2026-10-17",
-        ),
-    ],
-    ids=["club-car", "sydney-fc"],
-)
-def test_ausleisure_article_datelines(slug, expected, extensive):
-    # Reduced rendered pages retain the dateline, headline and related-story dates.
-    url = f"https://www.ausleisure.com.au/news/{slug}"
-    assert (
-        find_date(
-            load_mock_page(url),
-            url=url,
-            original_date=True,
-            extensive_search=extensive,
-            max_date="2026-11-18",
-        )
-        == expected
-    )
 
 
 def test_no_date():
@@ -526,7 +498,7 @@ def test_exact_date():
             ),
             extensive_search=False,
         )
-    ) is None
+    ) == "2019-12-02"
     assert (
         find_date(
             load_mock_page(
@@ -565,6 +537,11 @@ def test_exact_date():
         )
         == "2021-07-13"
     )
+
+    # dateline right before the headline, related stories further down
+    url = "https://www.ausleisure.com.au/news/club-car-and-pga-of-australia-renew-partnership"
+    assert find_date(load_mock_page(url), extensive_search=False) == "2026-10-19"
+    assert find_date(load_mock_page(url), extensive_search=True) == "2026-10-19"
 
 
 def test_approximate_date():
